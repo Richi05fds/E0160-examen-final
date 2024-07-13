@@ -1,0 +1,116 @@
+---
+title: "Ejercicio"
+author: "Richard Orihuela Mucha"
+date: '2024-07-13'
+output:
+  word_document: default
+  pdf_document: default
+  df_print: paged
+  html_document: default
+---
+
+```{r}
+library(tidyverse)
+library(rio)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+#Cargamos la base de datos:
+
+```{r}
+base_transacciones <- import("base_transacciones.csv")
+
+```
+
+#Limpiamos la base, en este codigo de filtran lo que son las fechas invalidas que no siguen el formato #YYYY-#MM-#DD
+
+```{r}
+is_valid_date <- function(date) {
+  grepl("^\\d{4}-\\d{2}-\\d{2}$", date)
+}
+
+fechas_invalidas<-base_transacciones %>%
+  filter(!is_valid_date(fecha_transaccion))
+print(fechas_invalidas) 
+
+base_transacciones <- base_transacciones %>%
+  filter(is_valid_date(fecha_transaccion))
+print(base_transacciones)
+
+```
+
+#Ahora vamos a filtrar los numeros negativos de las variables id_transaccion, id_cliente y monto
+
+```{r}
+base_transacciones <- base_transacciones %>%
+  filter(id_transaccion >= 0, id_cliente >= 0, monto >= 0)
+print(base_transacciones)
+```
+
+#filtramos los valores NA(no registrados)
+
+```{r}
+tipo_transaccion_no_registrada <-base_transacciones %>%
+  filter(is.na(tipo_transaccion))
+
+estado_transaccion_no_registrada <- base_transacciones%>%
+  filter(is.na(estado_transaccion))
+
+base_transacciones <- base_transacciones %>%
+  filter(!is.na(tipo_transaccion), !is.na(estado_transaccion))
+
+print(base_transacciones)
+
+```
+
+#Mostramos las transacciones completadas
+
+```{r}
+transacciones_completadas <- base_transacciones %>%
+  filter(estado_transaccion == "Completada")
+print(transacciones_completadas)
+
+```
+
+#Asumimos:
+#los valores maximos encontrados para retiros es $3000
+#los valores maximos encontrados para transferencias es $5000
+#los valores maximos encontrados para depositos es $3000
+
+```{r}
+
+transacciones_anormales <- base_transacciones %>%
+  filter((tipo_transaccion == "Retiro" & monto > 3000) |
+           (tipo_transaccion == "Transferencia" & monto > 5000) |
+           (tipo_transaccion == "Deposito"& monto > 3000))
+
+print(transacciones_anormales)
+
+```
+
+#juntamos los datos erroneos y los ponemos en un tabla
+
+```{r}
+
+valores_incoherentes <- bind_rows(
+  fechas_invalidas,
+  estado_transaccion_no_registrada,
+  tipo_transaccion_no_registrada,
+)
+
+print(valores_incoherentes)
+
+```
+
+#Por ultimo mostramos la base de datos limpia:
+
+```{r}
+
+print(base_transacciones)
+
+```

@@ -1,0 +1,157 @@
+---
+title: "Ejercicio 10"
+author: "Richard Orihuela Mucha"
+date: '2024-07-13'
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Cargamos la base de datos:
+```{r}
+library(tidyverse)	
+library(rio)
+```
+
+```
+
+```{r}
+base_registros_medicos <- import("base_registros_medicos.csv")
+
+```
+
+#Limpiamos la base, en este codigo de filtran lo que son las fechas invalidas que no siguen el formato #YYYY-#MM-#DD
+
+```{r}
+is_valid_date <- function(date) {
+  grepl("^\\d{4}-\\d{2}-\\d{2}$", date)
+}
+
+base_registros_medicos <- base_registros_medicos %>%
+  filter(is_valid_date(fecha_admision) & (is.na(fecha_alta) | is_valid_date(fecha_alta))) %>%
+  mutate(
+    fecha_admision = as.Date(fecha_admision),
+    fecha_alta = as.Date(fecha_alta)
+  )
+```
+
+#Ahora vamos a filtrar los numeros negativos de la variable id_registro
+
+```{r}
+Id_registro_no_valido <- base_registros_medicos %>%
+  filter(id_registro < 0)
+base_registros_medicos<- base_registros_medicos %>%
+  filter(id_registro >= 0)
+```
+
+#filtramos los valores NA(no registrados)
+
+```{r}
+id_clientes_no_registrados <- base_registros_medicos %>%
+  filter(id_paciente < 0 & !is.na(id_paciente))
+
+base_registros_medicos <- base_registros_medicos %>%
+  filter(id_paciente >= 0 & !is.na(id_paciente))
+
+costo_no_registrados <- base_registros_medicos %>%
+  filter(is.na(costo))
+
+base_registros_medicos <- base_registros_medicos %>%
+  filter(!is.na(costo))
+
+diagnostico_no_registrados <- base_registros_medicos %>%
+  filter(is.na(diagnostico))
+
+base_registros_medicos <- base_registros_medicos %>%
+  filter(!is.na(diagnostico))
+
+estado_no_registrados <- base_registros_medicos %>%
+  filter(is.na(estado))
+
+base_registros_medicos <- base_registros_medicos %>%
+  filter(!is.na(estado))
+
+```
+
+#Mostramos los pacientes dados de alta
+
+```{r}
+pacientes_alta <- base_registros_medicos %>%
+  filter(estado == "Alta")
+print(pacientes_alta)
+
+```
+
+#Caluclamos los dias de estadia de cada paciente
+
+```{r}
+#se calcula los días de estadia de cada paciente
+base_registros_medicos <- base_registros_medicos %>%
+  mutate(
+    fecha_admision = as.Date(fecha_admision),
+    fecha_alta = as.Date(fecha_alta),
+    diferencia_dias = as.numeric(fecha_alta - fecha_admision)
+  )
+```
+
+#filtramos los dias de estadia que son incoherentes (valores negativos)
+
+```{r}
+
+base_registros_medicos <- base_registros_medicos %>%
+  filter(diferencia_dias >= 0)
+
+```
+
+#Analizamos la cantidad de visitias que tuvo cada paciente
+
+```{r}
+visitas_paciente <- base_registros_medicos %>%
+  count(id_paciente)
+print(visitas_paciente)
+
+costo_cliente <- aggregate(costo ~ id_paciente, data = base_registros_medicos, FUN = sum)
+
+print(costo_cliente)
+
+```
+
+#Creamos una tabla donde ordenen mediante la variable id_paciente
+
+```{r}
+
+tabla_clientes <- merge(costo_cliente, visitas_paciente, by = "id_paciente", all = TRUE)
+print(tabla_clientes)
+
+
+tabla_analisis <- merge(tabla_clientes, base_registros_medicos[, c("id_paciente", "diferencia_dias")], by = "id_paciente", all.x = TRUE)
+print(tabla_analisis)
+
+```
+
+#Mostramos los valores erroneos
+
+```{r}
+valores_incoherentes <- bind_rows(
+  Id_registro_no_valido,
+  id_clientes_no_registrados,
+  costo_no_registrados,
+  diagnostico_no_registrados,
+  estado_no_registrados
+)
+
+```
+
+#Mostramos la base de datos limpia, la tabla de valores erroneos y la tabla pedida que son los pacientes dados de alta
+
+```{r}
+ print(base_registros_medicos)
+print(valores_incoherentes)
+print(pacientes_alta)
+
+
+```

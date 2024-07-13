@@ -1,0 +1,118 @@
+---
+title: "Ejercicio 4"
+author: "Richard Orihuela Mucha"
+date: '2024-07-13'
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(rio)
+library(readr)
+```
+
+#Cargamos la base de datos:
+
+```{r}
+polizas <- read.csv("base_polizas.csv")
+
+```
+
+#Limpiamos la base, en este codigo de filtran lo que son las fechas invalidas que no siguen el formato #YYYY-#MM-#DD
+
+```{r}
+is_valid_date <- function(date) {
+  grepl("^\\d{4}-\\d{2}-\\d{2}$", date)
+}
+```
+
+#Filtramos los valores negativos para los id_poliza
+
+```{r}
+valores_negativos <- polizas %>%
+  filter(id_poliza < 0)
+```
+
+#Se filtran los valores no encontrados(NA) en las variables nombre_cliente, fecha_fin, monto_cobertura y estado
+
+```{r}
+registros_no_encontrados <- polizas %>%
+  filter(is.na(nombre_cliente) |
+           is.na(fecha_fin) |
+           is.na(monto_cobertura) |
+           is.na(estado))
+```
+
+#Se filtran las fechas incorrectas que no sigan el formato YYYY-MM-DD , se filtran tambien si las fechas de inicio son mayores o iguales a la fecha fin; y tambien se filtran, si en caso haya, los valores NA
+
+```{r}
+
+fecha_incorrectas <- polizas %>%
+  filter(!is_valid_date(fecha_inicio) | !is_valid_date(fecha_fin))
+
+polizas_fecha_mal <- polizas %>%
+  filter(fecha_inicio >= fecha_fin | is.na(fecha_fin))
+
+polizas <- polizas %>%
+  filter(fecha_fin >= fecha_inicio | is.na(fecha_fin))
+
+```
+
+#Ahora vamos a convertir las fechas a tipo date
+
+```{r}
+polizas <- polizas %>%
+  mutate(
+    fecha_inicio = as.Date(fecha_inicio, format = "%Y-%m-%d"),
+    fecha_fin = as.Date(fecha_fin, format = "%Y-%m-%d"),
+    antiguedad = ifelse(is.na(fecha_fin), NA, as.integer(difftime(fecha_fin, fecha_inicio, units = "days") / 365))
+  )
+
+```
+
+#crear una copia de nuestra base de datos
+
+```{r}
+polizas_activas <- polizas
+```
+
+#filtrar las polizas activas en caso fecha fin sea NA
+
+```{r}
+
+polizas_activas <- polizas_activas %>%
+  mutate(
+    fecha_fin = ifelse(estado == "Activa", NA, fecha_fin)
+  )
+
+polizas_solo_activas <- polizas_activas %>%
+  filter(!is.na(fecha_fin) & fecha_fin >= fecha_inicio & estado == "Activa")
+```
+
+
+#juntamos los datos erroneos y los ponemos en un tabla
+
+```{r}
+valores_incoherentes <- bind_rows(
+  valores_negativos,
+  registros_no_encontrados,
+  fecha_incorrectas,
+  polizas_fecha_mal
+)
+```
+
+#Por ultimo mostramos la base de datos limpia y lo que nos piden:
+
+```{r}
+print(valores_incoherentes)
+print(polizas_solo_activas)
+print(polizas)
+
+```
